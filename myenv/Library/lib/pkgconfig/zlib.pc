@@ -1,0 +1,13 @@
+prefix=C:/school management/school-management/myenv/Library
+exec_prefix=C:/school management/school-management/myenv/Library
+libdir=C:/school management/school-management/myenv/Library/lib
+sharedlibdir=C:/school management/school-management/myenv/Library/lib
+includedir=C:/school management/school-management/myenv/Library/include
+
+Name: zlib
+Description: zlib compression library
+Version: 1.3.1
+
+Requires:
+Libs: -L${libdir} -L${sharedlibdir} -lz
+Cflags: -I${includedir}
