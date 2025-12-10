@@ -1,5 +1,6 @@
-import { ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
+// components/DashboardLayout.tsx
+import React, { ReactNode, useEffect, useRef, useState } from "react";
+import { NavLink, Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -13,8 +14,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Bell, LogOut, Settings, User, GraduationCap, Menu } from "lucide-react";
-import { useState } from "react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 interface NavItem {
   title: string;
@@ -29,135 +28,238 @@ interface DashboardLayoutProps {
   userRole: string;
 }
 
+const initialsFromName = (name = "") => {
+  if (!name) return "";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+};
+
 const DashboardLayout = ({ children, navItems, userName, userRole }: DashboardLayoutProps) => {
   const location = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // notifications dropdown
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement | null>(null);
+
+  // mobile sidebar state
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement | null>(null);
+
+  // close notifications when clicking outside
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    }
+    if (notifOpen) document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [notifOpen]);
+
+  // close mobile sidebar when clicking outside it (for small screens)
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      // only act when sidebar is open
+      if (!mobileOpen) return;
+      if (sidebarRef.current && !sidebarRef.current.contains(e.target as Node)) {
+        setMobileOpen(false);
+      }
+    }
+    if (mobileOpen) document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [mobileOpen]);
+
+  // close mobile sidebar on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
 
   const SidebarContent = () => (
-    <>
-      <div className="p-6 border-b border-sidebar-border">
-        <Link to="/" className="flex items-center gap-2">
+    <div className="h-full flex flex-col">
+      <div className="p-6 border-b border-gray-200 bg-white">
+        <Link to="/admin" className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
-            <GraduationCap className="h-6 w-6 text-primary-foreground" />
+            <GraduationCap className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h2 className="font-bold text-sidebar-foreground">EduManage</h2>
-            <p className="text-xs text-sidebar-foreground/60">School Portal</p>
+            {/* Explicit dark text for contrast */}
+            <h2 className="font-bold text-black">EduManage</h2>
+            <p className="text-xs text-black/60">School Portal</p>
           </div>
         </Link>
       </div>
 
-      <ScrollArea className="flex-1 py-4">
+      <ScrollArea className="flex-1 py-4 bg-white">
         <nav className="space-y-1 px-3">
-          {navItems.map((item) => (
-            <Link key={item.href} to={item.href}>
-              <Button
-                variant="ghost"
-                className={cn(
-                  "w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent",
-                  location.pathname === item.href && "bg-sidebar-accent"
-                )}
+          {navItems.map((item) => {
+            const isActive =
+              location.pathname === item.href || location.pathname.startsWith(item.href + "/");
+
+            return (
+              <NavLink
+                key={item.href}
+                to={item.href}
+                className={({ isActive: navIsActive }) =>
+                  cn(
+                    "block w-full rounded-md overflow-hidden transition-colors",
+                    isActive || navIsActive
+                      ? "bg-gray-100 text-black font-medium"
+                      : "hover:bg-gray-50"
+                  )
+                }
+                aria-current={isActive ? "page" : undefined}
               >
-                {item.icon}
-                {item.title}
-              </Button>
-            </Link>
-          ))}
+                <Button variant="ghost" className="w-full justify-start gap-3 text-left">
+                  {item.icon}
+                  <span className="text-sm">{item.title}</span>
+                </Button>
+              </NavLink>
+            );
+          })}
         </nav>
       </ScrollArea>
 
-      <div className="p-4 border-t border-sidebar-border">
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-sidebar-accent/50">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src="" />
-            <AvatarFallback className="bg-primary text-primary-foreground">
-              {userName.charAt(0)}
+      <div className="p-4 border-t border-gray-200 bg-white">
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-white">
+          <Avatar className="h-10 w-10 ring-1 ring-black/6">
+            <AvatarImage src="" alt={`${userName} avatar`} />
+            <AvatarFallback className="bg-primary text-white">
+              {initialsFromName(userName)}
             </AvatarFallback>
           </Avatar>
+
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-sidebar-foreground truncate">{userName}</p>
-            <p className="text-xs text-sidebar-foreground/60 capitalize">{userRole}</p>
+            <p className="text-sm font-medium text-black truncate">{userName}</p>
+            <p className="text-xs text-black/60 capitalize">{userRole}</p>
           </div>
+
+          <Link to="/admin/profile" className="text-sm font-semibold text-black hover:underline">
+            View
+          </Link>
         </div>
       </div>
-    </>
+    </div>
   );
 
   return (
-    <div className="min-h-screen flex bg-background">
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-64 bg-sidebar-background border-r border-sidebar-border">
+    <div className="min-h-screen flex bg-gray-50">
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:flex lg:flex-col lg:w-64 border-r border-gray-200 bg-white">
         <SidebarContent />
       </aside>
 
-      {/* Mobile Sidebar */}
-      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="p-0 w-64 bg-sidebar-background">
+      {/* Mobile slide-in sidebar (no overlay/backdrop). click outside closes it. */}
+      <div
+        className={`fixed inset-y-0 left-0 z-40 transform ${mobileOpen ? "translate-x-0" : "-translate-x-full"} transition-transform duration-200 lg:hidden`}
+        aria-hidden={!mobileOpen}
+        ref={sidebarRef}
+      >
+        <div className="w-64 h-full border-r border-gray-200 bg-white shadow-lg">
           <SidebarContent />
-        </SheetContent>
-      </Sheet>
+        </div>
+      </div>
 
-      {/* Main Content */}
+      {/* Main content */}
       <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="h-16 border-b bg-card flex items-center justify-between px-4 lg:px-6">
+        <header className="h-16 border-b border-gray-200 bg-white flex items-center justify-between px-4 lg:px-6">
           <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
+            {/* Mobile toggle button */}
+            <div className="lg:hidden">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
+                onClick={() => setMobileOpen((s) => !s)}
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </div>
+
             <div>
-              <p className="text-sm text-muted-foreground">Welcome back,</p>
-              <h1 className="text-lg font-semibold">{userName}</h1>
+              <p className="text-sm text-gray-500">Welcome back,</p>
+              {/* main page title / user name (kept in header) */}
+              <h1 className="text-lg font-semibold text-black">{userName}</h1>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-1 right-1 h-2 w-2 bg-destructive rounded-full" />
-            </Button>
+          <div className="flex items-center gap-3">
+            {/* notifications */}
+            <div ref={notifRef} className="relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Notifications"
+                onClick={() => setNotifOpen((s) => !s)}
+                className="relative"
+              >
+                <Bell className="h-5 w-5" />
+                <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center text-[10px] bg-red-600 text-white rounded-full h-4 w-4">
+                  3
+                </span>
+              </Button>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="gap-2">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="" />
-                    <AvatarFallback className="bg-primary text-primary-foreground">
-                      {userName.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/login" className="flex items-center">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Logout
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              {notifOpen && (
+                <div className="absolute right-0 mt-2 w-72 bg-white border rounded shadow p-3 z-50">
+                  <div className="text-sm font-semibold mb-2">Notifications</div>
+                  <ul className="text-sm space-y-2 max-h-56 overflow-auto">
+                    <li className="p-2 rounded hover:bg-gray-50">New student registered</li>
+                    <li className="p-2 rounded hover:bg-gray-50">Fee payment received</li>
+                    <li className="p-2 rounded hover:bg-gray-50">Low attendance alert</li>
+                  </ul>
+                  <div className="mt-3 text-right">
+                    <Link to="/admin/notifications" className="text-xs text-primary hover:underline">
+                      View all
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* avatar dropdown (avatar only) - user name removed here to avoid duplicate */}
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="rounded-full p-0 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" aria-label="Open profile menu">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src="" alt={`${userName} avatar`} />
+                      <AvatarFallback className="bg-primary text-white">{initialsFromName(userName)}</AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin/profile" className="flex items-center">
+                      <User className="mr-2 h-4 w-4" />
+                      Profile
+                    </Link>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin/settings" className="flex items-center">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuItem asChild>
+                    <Link to="/login" className="flex items-center">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Logout
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto bg-gray-50">
           <div className="container mx-auto p-4 lg:p-6">{children}</div>
         </main>
       </div>
