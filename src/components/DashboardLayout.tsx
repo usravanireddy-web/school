@@ -26,6 +26,8 @@ interface DashboardLayoutProps {
   navItems: NavItem[];
   userName: string;
   userRole: string;
+  /** base route for the current user's home (e.g. '/admin' or '/student'). Defaults to '/admin' */
+  homeHref?: string;
 }
 
 const initialsFromName = (name = "") => {
@@ -35,7 +37,18 @@ const initialsFromName = (name = "") => {
   return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
 };
 
-const DashboardLayout = ({ children, navItems, userName, userRole }: DashboardLayoutProps) => {
+const normalizePath = (p = "") => {
+  if (!p) return "/";
+  return p.endsWith("/") && p.length > 1 ? p.slice(0, -1) : p;
+};
+
+const DashboardLayout = ({
+  children,
+  navItems,
+  userName,
+  userRole,
+  homeHref = "/admin",
+}: DashboardLayoutProps) => {
   const location = useLocation();
 
   // notifications dropdown
@@ -60,7 +73,6 @@ const DashboardLayout = ({ children, navItems, userName, userRole }: DashboardLa
   // close mobile sidebar when clicking outside it (for small screens)
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
-      // only act when sidebar is open
       if (!mobileOpen) return;
       if (sidebarRef.current && !sidebarRef.current.contains(e.target as Node)) {
         setMobileOpen(false);
@@ -75,15 +87,18 @@ const DashboardLayout = ({ children, navItems, userName, userRole }: DashboardLa
     setMobileOpen(false);
   }, [location.pathname]);
 
+  const normalizedLocation = normalizePath(location.pathname);
+  const normalizedHome = normalizePath(homeHref);
+
   const SidebarContent = () => (
     <div className="h-full flex flex-col">
       <div className="p-6 border-b border-gray-200 bg-white">
-        <Link to="/admin" className="flex items-center gap-3">
+        {/* logo links to homeHref now (role-aware) */}
+        <Link to={normalizedHome} className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
             <GraduationCap className="h-6 w-6 text-white" />
           </div>
           <div>
-            {/* Explicit dark text for contrast */}
             <h2 className="font-bold text-black">EduManage</h2>
             <p className="text-xs text-black/60">School Portal</p>
           </div>
@@ -93,8 +108,10 @@ const DashboardLayout = ({ children, navItems, userName, userRole }: DashboardLa
       <ScrollArea className="flex-1 py-4 bg-white">
         <nav className="space-y-1 px-3">
           {navItems.map((item) => {
+            // more tolerant isActive: match exact or startsWith (handles nested routes)
+            const itemPath = normalizePath(item.href);
             const isActive =
-              location.pathname === item.href || location.pathname.startsWith(item.href + "/");
+              normalizedLocation === itemPath || normalizedLocation.startsWith(itemPath + "/");
 
             return (
               <NavLink
@@ -134,7 +151,8 @@ const DashboardLayout = ({ children, navItems, userName, userRole }: DashboardLa
             <p className="text-xs text-black/60 capitalize">{userRole}</p>
           </div>
 
-          <Link to="/admin/profile" className="text-sm font-semibold text-black hover:underline">
+          {/* View link uses homeHref/profile so it opens the correct profile route */}
+          <Link to={`${normalizedHome}/profile`} className="text-sm font-semibold text-black hover:underline">
             View
           </Link>
         </div>
@@ -178,7 +196,6 @@ const DashboardLayout = ({ children, navItems, userName, userRole }: DashboardLa
 
             <div>
               <p className="text-sm text-gray-500">Welcome back,</p>
-              {/* main page title / user name (kept in header) */}
               <h1 className="text-lg font-semibold text-black">{userName}</h1>
             </div>
           </div>
@@ -208,7 +225,7 @@ const DashboardLayout = ({ children, navItems, userName, userRole }: DashboardLa
                     <li className="p-2 rounded hover:bg-gray-50">Low attendance alert</li>
                   </ul>
                   <div className="mt-3 text-right">
-                    <Link to="/admin/notifications" className="text-xs text-primary hover:underline">
+                    <Link to={`${normalizedHome}/notifications`} className="text-xs text-primary hover:underline">
                       View all
                     </Link>
                   </div>
@@ -216,7 +233,7 @@ const DashboardLayout = ({ children, navItems, userName, userRole }: DashboardLa
               )}
             </div>
 
-            {/* avatar dropdown (avatar only) - user name removed here to avoid duplicate */}
+            {/* avatar dropdown */}
             <div className="flex items-center gap-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -232,14 +249,14 @@ const DashboardLayout = ({ children, navItems, userName, userRole }: DashboardLa
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
 
                   <DropdownMenuItem asChild>
-                    <Link to="/admin/profile" className="flex items-center">
+                    <Link to={`${normalizedHome}/profile`} className="flex items-center">
                       <User className="mr-2 h-4 w-4" />
                       Profile
                     </Link>
                   </DropdownMenuItem>
 
                   <DropdownMenuItem asChild>
-                    <Link to="/admin/settings" className="flex items-center">
+                    <Link to={`${normalizedHome}/settings`} className="flex items-center">
                       <Settings className="mr-2 h-4 w-4" />
                       Settings
                     </Link>
